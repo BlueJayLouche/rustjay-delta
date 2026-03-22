@@ -396,6 +396,7 @@ impl WgpuEngine {
     }
 
     /// Start NDI output
+    #[cfg(feature = "ndi")]
     pub fn start_ndi_output(&mut self, name: &str, include_alpha: bool) -> anyhow::Result<()> {
         self.output_manager.start_ndi(
             name,
@@ -406,10 +407,19 @@ impl WgpuEngine {
         Ok(())
     }
 
+    #[cfg(not(feature = "ndi"))]
+    pub fn start_ndi_output(&mut self, _name: &str, _include_alpha: bool) -> anyhow::Result<()> {
+        Err(anyhow::anyhow!("NDI support not compiled. Enable the 'ndi' feature."))
+    }
+
     /// Stop NDI output
+    #[cfg(feature = "ndi")]
     pub fn stop_ndi_output(&mut self) {
         self.output_manager.stop_ndi();
     }
+
+    #[cfg(not(feature = "ndi"))]
+    pub fn stop_ndi_output(&mut self) {}
 
     /// Start Syphon output (macOS only)
     #[cfg(target_os = "macos")]

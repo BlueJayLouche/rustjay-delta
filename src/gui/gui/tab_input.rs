@@ -62,11 +62,13 @@ impl ControlGui {
             ui.text_disabled("No webcams found");
         }
 
+        // NDI section
+        #[cfg(feature = "ndi")]
+        {
         ui.spacing();
         ui.separator();
         ui.spacing();
 
-        // NDI section
         ui.text_colored([0.0, 1.0, 1.0, 1.0], "NDI");
         if !self.ndi_sources.is_empty() {
             let source_names: Vec<&str> = self.ndi_sources.iter().map(|s| s.as_str()).collect();
@@ -81,6 +83,7 @@ impl ControlGui {
             }
         } else {
             ui.text_disabled("No NDI sources found");
+        }
         }
 
         // Syphon section (macOS only)

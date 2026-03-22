@@ -19,6 +19,7 @@ pub use crate::web::WebControlCommand as WebCommand;
 pub enum InputType {
     None,
     Webcam,
+    #[cfg(feature = "ndi")]
     Ndi,
     #[cfg(target_os = "macos")]
     Syphon,
@@ -40,6 +41,7 @@ impl InputType {
         match self {
             InputType::None => "None",
             InputType::Webcam => "Webcam",
+            #[cfg(feature = "ndi")]
             InputType::Ndi => "NDI",
             #[cfg(target_os = "macos")]
             InputType::Syphon => "Syphon",

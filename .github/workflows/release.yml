@@ -54,32 +54,9 @@ jobs:
         shell: bash
         run: git clone https://github.com/BlueJayLouche/syphon-rs.git ../syphon-rs
 
-      - name: Install NDI SDK (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          curl -fL "https://downloads.ndi.tv/SDK/NDI_SDK_Apple/Install_NDI_SDK_v6_Apple.pkg" \
-            -o NDI_SDK.pkg
-          sudo installer -pkg NDI_SDK.pkg -target /
-
-      - name: Install NDI SDK (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          curl -fL "https://downloads.ndi.tv/SDK/NDI_SDK/NDI_SDK_Linux.tar.gz" \
-            -o NDI_SDK.tar.gz
-          tar -xzf NDI_SDK.tar.gz
-          sudo cp -r "NDI SDK for Linux/include/." /usr/local/include/
-          sudo cp -r "NDI SDK for Linux/lib/x86_64-linux-gnu/." /usr/local/lib/
-          sudo ldconfig
-
-      - name: Install NDI SDK (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          Invoke-WebRequest `
-            "https://downloads.ndi.tv/SDK/NDI_SDK/NDI_SDK_Windows.exe" `
-            -OutFile NDI_SDK.exe
-          Start-Process -FilePath NDI_SDK.exe -Args "/S" -Wait
-
+      # NDI SDK is NOT installed in CI — builds use --no-default-features which
+      # excludes the ndi feature.  Users who want NDI build from source with
+      # --features ndi after installing the NDI SDK from https://ndi.video/tools/
       - name: Install system dependencies (Linux)
         if: runner.os == 'Linux'
         run: |
@@ -109,7 +86,14 @@ jobs:
           restore-keys: ${{ runner.os }}-cargo-
 
       - name: Build
-        run: cargo build --release --target ${{ matrix.target }}
+        run: |
+          if [ "${{ runner.os }}" = "macOS" ]; then
+            cargo build --release --target ${{ matrix.target }} --no-default-features --features webcam,syphon
+          elif [ "${{ runner.os }}" = "Linux" ]; then
+            cargo build --release --target ${{ matrix.target }} --no-default-features --features webcam
+          else
+            cargo build --release --target ${{ matrix.target }} --no-default-features --features webcam
+          fi
 
       # ── macOS: assemble .app bundle and wrap in a .dmg ──────────────────────
 

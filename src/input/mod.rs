@@ -20,6 +20,7 @@ pub enum InputCommand {
         height: u32,
         fps: u32,
     },
+    #[cfg(feature = "ndi")]
     StartNdi {
         source_name: String,
     },
@@ -40,8 +41,26 @@ pub enum InputCommand {
     RefreshDevices,
 }
 
+#[cfg(feature = "ndi")]
 pub mod ndi;
+#[cfg(feature = "ndi")]
 pub use ndi::{list_ndi_sources, NdiReceiver, NdiFrame};
+
+/// Placeholder NDI receiver when the ndi feature is disabled
+#[cfg(not(feature = "ndi"))]
+pub struct NdiReceiver;
+#[cfg(not(feature = "ndi"))]
+impl NdiReceiver {
+    pub fn is_source_lost(&self) -> bool { false }
+}
+#[cfg(not(feature = "ndi"))]
+pub struct NdiFrame {
+    pub data: Vec<u8>,
+    pub width: u32,
+    pub height: u32,
+}
+#[cfg(not(feature = "ndi"))]
+pub fn list_ndi_sources(_timeout_ms: u32) -> Vec<String> { vec![] }
 
 #[cfg(feature = "webcam")]
 pub mod webcam;
@@ -115,6 +134,7 @@ pub struct InputManager {
     #[cfg(not(feature = "webcam"))]
     webcam: Option<()>,
     frame_receiver: Option<mpsc::Receiver<WebcamFrame>>,
+    #[cfg(feature = "ndi")]
     ndi_receiver: Option<NdiReceiver>,
 
     // Syphon (macOS only)
@@ -158,6 +178,7 @@ impl InputManager {
             #[cfg(not(feature = "webcam"))]
             webcam: None,
             frame_receiver: None,
+            #[cfg(feature = "ndi")]
             ndi_receiver: None,
             #[cfg(target_os = "macos")]
             syphon_receiver: None,
@@ -253,9 +274,15 @@ impl InputManager {
             #[cfg(not(feature = "webcam"))]
             let webcam: Vec<String> = Vec::new();
 
-            log::info!("[InputManager] Discovering NDI sources...");
-            let ndi = list_ndi_sources(2000);
-            log::info!("[InputManager] Found {} NDI source(s)", ndi.len());
+            #[cfg(feature = "ndi")]
+            let ndi = {
+                log::info!("[InputManager] Discovering NDI sources...");
+                let sources = list_ndi_sources(2000);
+                log::info!("[InputManager] Found {} NDI source(s)", sources.len());
+                sources
+            };
+            #[cfg(not(feature = "ndi"))]
+            let ndi: Vec<String> = Vec::new();
 
             #[cfg(target_os = "macos")]
             let syphon = {
@@ -338,6 +365,7 @@ impl InputManager {
     }
 
     /// Start NDI input
+    #[cfg(feature = "ndi")]
     pub fn start_ndi(&mut self, source_name: impl Into<String>) -> Result<()> {
         self.stop();
 
@@ -351,6 +379,12 @@ impl InputManager {
 
         log::info!("Started NDI input: {}", source_name);
         Ok(())
+    }
+
+    /// Start NDI input stub (ndi feature disabled)
+    #[cfg(not(feature = "ndi"))]
+    pub fn start_ndi(&mut self, _source_name: impl Into<String>) -> Result<()> {
+        Err(anyhow::anyhow!("NDI support not compiled. Enable the 'ndi' feature."))
     }
 
     /// Start Syphon input (macOS only)
@@ -435,6 +469,7 @@ impl InputManager {
         }
 
         // Stop NDI
+        #[cfg(feature = "ndi")]
         if let Some(mut ndi) = self.ndi_receiver.take() {
             ndi.stop();
         }
@@ -476,6 +511,7 @@ impl InputManager {
         }
 
         // Handle NDI frames
+        #[cfg(feature = "ndi")]
         if let Some(ref mut ndi) = self.ndi_receiver {
             if let Some(frame) = ndi.get_latest_frame() {
                 self.resolution = (frame.width, frame.height);
@@ -548,8 +584,14 @@ impl InputManager {
     }
 
     /// Returns true if the NDI source was lost (not found or too many errors)
+    #[cfg(feature = "ndi")]
     pub fn is_ndi_source_lost(&self) -> bool {
         self.ndi_receiver.as_ref().map(|r| r.is_source_lost()).unwrap_or(false)
+    }
+
+    #[cfg(not(feature = "ndi"))]
+    pub fn is_ndi_source_lost(&self) -> bool {
+        false
     }
 }
 

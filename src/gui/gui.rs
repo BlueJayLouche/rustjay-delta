@@ -28,6 +28,7 @@ pub struct ControlGui {
     selected_audio_device: usize,
 
     // NDI output name
+    #[cfg(feature = "ndi")]
     ndi_output_name: String,
 
     // Syphon output name (macOS)
@@ -54,13 +55,18 @@ pub struct ControlGui {
 impl ControlGui {
     /// Create a new control GUI
     pub fn new(shared_state: Arc<Mutex<SharedState>>) -> anyhow::Result<Self> {
-        let (ndi_name, syphon_name) = {
+        let syphon_name = {
             let state = shared_state.lock().unwrap_or_else(|e| e.into_inner());
             #[cfg(target_os = "macos")]
             let syphon = state.syphon_output.server_name.clone();
             #[cfg(not(target_os = "macos"))]
             let syphon = String::new();
-            (state.ndi_output.stream_name.clone(), syphon)
+            syphon
+        };
+        #[cfg(feature = "ndi")]
+        let ndi_name = {
+            let state = shared_state.lock().unwrap_or_else(|e| e.into_inner());
+            state.ndi_output.stream_name.clone()
         };
 
         Ok(Self {
@@ -75,6 +81,7 @@ impl ControlGui {
             #[cfg(target_os = "macos")]
             selected_syphon: 0,
             selected_audio_device: 0,
+            #[cfg(feature = "ndi")]
             ndi_output_name: ndi_name,
             #[cfg(target_os = "macos")]
             syphon_output_name: syphon_name,
