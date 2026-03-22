@@ -76,17 +76,24 @@ impl ControlGui {
             // TODO: Export preset
         }
 
-        // Save preset popup
+        // Save preset popup — set size before begin_popup so it takes effect.
+        // imgui-rs 0.12 doesn't expose set_next_window_size on Ui, so call sys directly.
+        unsafe {
+            imgui::sys::igSetNextWindowSize(
+                imgui::sys::ImVec2 { x: 400.0, y: 0.0 },
+                imgui::sys::ImGuiCond_Appearing as i32,
+            );
+        }
         if ui.modal_popup_config("Save Preset")
             .resizable(false)
-            .always_auto_resize(true)
             .begin_popup()
             .is_some()
         {
             ui.text("Enter preset name:");
-            ui.set_next_item_width(300.0);
+            let _w = ui.push_item_width(-1.0);
             ui.input_text("##preset_name", &mut self.preset_name_buffer)
                 .build();
+            drop(_w);
 
             ui.spacing();
 
