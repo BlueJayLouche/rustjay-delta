@@ -190,6 +190,25 @@ Native `Bgra8Unorm` throughout — matches macOS surface format and Syphon's nat
 - 8-band FFT (20 Hz – 16 kHz), optional pink noise shaping
 - Beat detection with energy history
 
+## Troubleshooting
+
+### "Library not loaded: Syphon.framework"
+
+1. Verify the framework exists: `ls ../syphon-rs/syphon-lib/Syphon.framework`
+2. Rebuild after setting the path: `SYPHON_FRAMEWORK_DIR=/path/to/syphon-rs/syphon-lib cargo build --release`
+
+### NDI source not found
+
+- Install the NDI Runtime from [ndi.video](https://ndi.video)
+- Ensure source and receiver are on the same subnet
+- Check firewall — NDI uses ports 5960–5969
+
+### Performance
+
+- Use `cargo run --release` — debug builds are significantly slower
+- Lower the resolution preset in the Output tab to reduce VRAM usage
+- Disable smoothing if CPU-bound
+
 ## License
 
 MIT License — see LICENSE for details
