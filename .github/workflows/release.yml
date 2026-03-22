@@ -48,12 +48,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # syphon-rs is a Cargo path dependency for macOS — must exist on all
-      # platforms even though it only compiles on macOS.
-      - name: Clone syphon-rs
-        shell: bash
-        run: git clone https://github.com/BlueJayLouche/syphon-rs.git ../syphon-rs
-
       # NDI SDK is NOT installed in CI — builds use --no-default-features which
       # excludes the ndi feature.  Users who want NDI build from source with
       # --features ndi after installing the NDI SDK from https://ndi.video/tools/
