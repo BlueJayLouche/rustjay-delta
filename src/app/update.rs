@@ -234,16 +234,28 @@ impl App {
 
             // Sync current parameter values to web server
             if let Ok(state) = self.shared_state.lock() {
+                // Motion
+                server.update_parameter("motion/enabled", if state.motion_params.enabled { 1.0 } else { 0.0 });
                 server.update_parameter("motion/red_delay", state.motion_params.red_delay as f32);
                 server.update_parameter("motion/green_delay", state.motion_params.green_delay as f32);
                 server.update_parameter("motion/blue_delay", state.motion_params.blue_delay as f32);
                 server.update_parameter("motion/intensity", state.motion_params.intensity);
-                server.update_parameter("motion/enabled", if state.motion_enabled { 1.0 } else { 0.0 });
+                server.update_parameter("motion/blend_mode", state.motion_params.blend_mode as i32 as f32);
+                server.update_parameter("motion/grayscale_input", if state.motion_params.grayscale_input { 1.0 } else { 0.0 });
+                server.update_parameter("motion/red_gain", state.motion_params.red_gain);
+                server.update_parameter("motion/green_gain", state.motion_params.green_gain);
+                server.update_parameter("motion/blue_gain", state.motion_params.blue_gain);
+                server.update_parameter("motion/input_mix", state.motion_params.input_mix);
+                server.update_parameter("motion/trail_fade", state.motion_params.trail_fade);
+                server.update_parameter("motion/threshold", state.motion_params.threshold);
+                server.update_parameter("motion/smoothing", state.motion_params.smoothing);
+                // Audio
                 server.update_parameter("audio/amplitude", state.audio.amplitude);
                 server.update_parameter("audio/smoothing", state.audio.smoothing);
                 server.update_parameter("audio/enabled", if state.audio.enabled { 1.0 } else { 0.0 });
                 server.update_parameter("audio/normalize", if state.audio.normalize { 1.0 } else { 0.0 });
                 server.update_parameter("audio/pink_noise", if state.audio.pink_noise_shaping { 1.0 } else { 0.0 });
+                // Output
                 server.update_parameter("output/fullscreen", if state.output_fullscreen { 1.0 } else { 0.0 });
             }
         }

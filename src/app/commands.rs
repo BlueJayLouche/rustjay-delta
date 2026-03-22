@@ -429,19 +429,38 @@ impl App {
                     WebServerCommand::Set { id, value } => {
                         if let Ok(mut state) = self.shared_state.lock() {
                             match id.as_str() {
-                                "motion/red_delay" => state.motion_params.red_delay = value.clamp(0.0, 16.0) as u32,
-                                "motion/green_delay" => state.motion_params.green_delay = value.clamp(0.0, 16.0) as u32,
-                                "motion/blue_delay" => state.motion_params.blue_delay = value.clamp(0.0, 16.0) as u32,
-                                "motion/intensity" => state.motion_params.intensity = value.clamp(0.0, 1.0),
-                                "motion/enabled" => state.motion_enabled = value > 0.5,
-                                "audio/amplitude" => state.audio.amplitude = value.clamp(0.0, 5.0),
-                                "audio/smoothing" => state.audio.smoothing = value.clamp(0.0, 1.0),
-                                "audio/enabled" => state.audio.enabled = value > 0.5,
-                                "audio/normalize" => state.audio.normalize = value > 0.5,
-                                "audio/pink_noise" => state.audio.pink_noise_shaping = value > 0.5,
-                                "output/fullscreen" => {
-                                    state.output_fullscreen = value > 0.5;
+                                "motion/enabled"       => state.motion_params.enabled = value > 0.5,
+                                "motion/red_delay"     => state.motion_params.red_delay = value.clamp(0.0, 16.0) as u32,
+                                "motion/green_delay"   => state.motion_params.green_delay = value.clamp(0.0, 16.0) as u32,
+                                "motion/blue_delay"    => state.motion_params.blue_delay = value.clamp(0.0, 16.0) as u32,
+                                "motion/intensity"     => state.motion_params.intensity = value.clamp(0.0, 1.0),
+                                "motion/blend_mode"    => {
+                                    use crate::core::BlendMode;
+                                    state.motion_params.blend_mode = match value as i32 {
+                                        1 => BlendMode::Add,
+                                        2 => BlendMode::Multiply,
+                                        3 => BlendMode::Screen,
+                                        4 => BlendMode::Difference,
+                                        5 => BlendMode::Overlay,
+                                        6 => BlendMode::Lighten,
+                                        7 => BlendMode::Darken,
+                                        _ => BlendMode::Replace,
+                                    };
                                 }
+                                "motion/grayscale_input" => state.motion_params.grayscale_input = value > 0.5,
+                                "motion/red_gain"      => state.motion_params.red_gain = value.clamp(-2.0, 2.0),
+                                "motion/green_gain"    => state.motion_params.green_gain = value.clamp(-2.0, 2.0),
+                                "motion/blue_gain"     => state.motion_params.blue_gain = value.clamp(-2.0, 2.0),
+                                "motion/input_mix"     => state.motion_params.input_mix = value.clamp(0.0, 1.0),
+                                "motion/trail_fade"    => state.motion_params.trail_fade = value.clamp(0.0, 1.0),
+                                "motion/threshold"     => state.motion_params.threshold = value.clamp(0.0, 1.0),
+                                "motion/smoothing"     => state.motion_params.smoothing = value.clamp(0.0, 1.0),
+                                "audio/amplitude"      => state.audio.amplitude = value.clamp(0.0, 5.0),
+                                "audio/smoothing"      => state.audio.smoothing = value.clamp(0.0, 1.0),
+                                "audio/enabled"        => state.audio.enabled = value > 0.5,
+                                "audio/normalize"      => state.audio.normalize = value > 0.5,
+                                "audio/pink_noise"     => state.audio.pink_noise_shaping = value > 0.5,
+                                "output/fullscreen"    => state.output_fullscreen = value > 0.5,
                                 _ => {}
                             }
                         }

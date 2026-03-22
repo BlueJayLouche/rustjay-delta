@@ -55,6 +55,7 @@ pub struct WebParameter {
     pub max: f32,
     pub value: f32,
     pub step: f32,
+    pub options: Option<Vec<String>>,
 }
 
 /// Web server state shared between handlers
@@ -129,25 +130,54 @@ impl WebServer {
                 max,
                 value,
                 step,
+                options: None,
             });
         }
     }
-    
-    /// Register default parameters (color, audio, etc.)
+
+    /// Register an enum parameter for the web UI (rendered as a select/dropdown)
+    pub fn register_enum_parameter(&mut self, id: &str, name: &str, category: &str, options: Vec<String>, value: f32) {
+        if let Ok(mut state) = self.state.lock() {
+            state.parameters.insert(id.to_string(), WebParameter {
+                id: id.to_string(),
+                name: name.to_string(),
+                category: category.to_string(),
+                min: 0.0,
+                max: (options.len() as f32) - 1.0,
+                value,
+                step: 1.0,
+                options: Some(options),
+            });
+        }
+    }
+
+    /// Register default parameters (motion, audio, output)
     pub fn register_default_parameters(&mut self) {
-        // Color parameters
-        self.register_parameter("color/hue_shift", "Hue Shift", "Color", -180.0, 180.0, 0.0, 1.0);
-        self.register_parameter("color/saturation", "Saturation", "Color", 0.0, 2.0, 1.0, 0.01);
-        self.register_parameter("color/brightness", "Brightness", "Color", 0.0, 2.0, 1.0, 0.01);
-        self.register_parameter("color/enabled", "Color Enabled", "Color", 0.0, 1.0, 1.0, 1.0);
-        
+        // Motion parameters
+        self.register_parameter("motion/enabled", "Motion Enabled", "Motion", 0.0, 1.0, 1.0, 1.0);
+        self.register_parameter("motion/red_delay", "Red Delay", "Motion", 0.0, 16.0, 0.0, 1.0);
+        self.register_parameter("motion/green_delay", "Green Delay", "Motion", 0.0, 16.0, 2.0, 1.0);
+        self.register_parameter("motion/blue_delay", "Blue Delay", "Motion", 0.0, 16.0, 4.0, 1.0);
+        self.register_parameter("motion/intensity", "Intensity", "Motion", 0.0, 1.0, 1.0, 0.01);
+        self.register_enum_parameter("motion/blend_mode", "Blend Mode", "Motion",
+            vec!["Replace".into(), "Add".into(), "Multiply".into(), "Screen".into(),
+                 "Difference".into(), "Overlay".into(), "Lighten".into(), "Darken".into()], 0.0);
+        self.register_parameter("motion/grayscale_input", "Grayscale Input", "Motion", 0.0, 1.0, 1.0, 1.0);
+        self.register_parameter("motion/red_gain", "Red Gain", "Motion", -2.0, 2.0, 1.0, 0.01);
+        self.register_parameter("motion/green_gain", "Green Gain", "Motion", -2.0, 2.0, 1.0, 0.01);
+        self.register_parameter("motion/blue_gain", "Blue Gain", "Motion", -2.0, 2.0, 1.0, 0.01);
+        self.register_parameter("motion/input_mix", "Input Mix", "Motion", 0.0, 1.0, 0.0, 0.01);
+        self.register_parameter("motion/trail_fade", "Trail Fade", "Motion", 0.0, 1.0, 0.0, 0.01);
+        self.register_parameter("motion/threshold", "Threshold", "Motion", 0.0, 1.0, 0.0, 0.01);
+        self.register_parameter("motion/smoothing", "Smoothing", "Motion", 0.0, 1.0, 0.0, 0.01);
+
         // Audio parameters
         self.register_parameter("audio/amplitude", "Amplitude", "Audio", 0.0, 5.0, 1.0, 0.01);
         self.register_parameter("audio/smoothing", "Smoothing", "Audio", 0.0, 1.0, 0.5, 0.01);
         self.register_parameter("audio/enabled", "Audio Enabled", "Audio", 0.0, 1.0, 1.0, 1.0);
         self.register_parameter("audio/normalize", "Normalize", "Audio", 0.0, 1.0, 1.0, 1.0);
         self.register_parameter("audio/pink_noise", "Pink Noise", "Audio", 0.0, 1.0, 0.0, 1.0);
-        
+
         // Output parameters
         self.register_parameter("output/fullscreen", "Fullscreen", "Output", 0.0, 1.0, 0.0, 1.0);
     }
