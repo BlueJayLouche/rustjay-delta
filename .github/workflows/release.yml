@@ -1,0 +1,194 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build (${{ matrix.name }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS Apple Silicon
+            runner: macos-latest
+            target: aarch64-apple-darwin
+            binary: rustjay-delta
+            archive: rustjay-delta-macos-arm64
+            bundle: true
+
+          - name: macOS Intel
+            runner: macos-13
+            target: x86_64-apple-darwin
+            binary: rustjay-delta
+            archive: rustjay-delta-macos-x86_64
+            bundle: true
+
+          - name: Linux x86_64
+            runner: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            binary: rustjay-delta
+            archive: rustjay-delta-linux-x86_64
+            bundle: false
+
+          - name: Windows x86_64
+            runner: windows-latest
+            target: x86_64-pc-windows-msvc
+            binary: rustjay-delta.exe
+            archive: rustjay-delta-windows-x86_64
+            bundle: false
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # syphon-rs is a Cargo path dependency for macOS — must exist on all
+      # platforms even though it only compiles on macOS.
+      - name: Clone syphon-rs
+        shell: bash
+        run: git clone https://github.com/BlueJayLouche/syphon-rs.git ../syphon-rs
+
+      - name: Install NDI SDK (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          curl -fL "https://downloads.ndi.tv/SDK/NDI_SDK_Apple/Install_NDI_SDK_v6_Apple.pkg" \
+            -o NDI_SDK.pkg
+          sudo installer -pkg NDI_SDK.pkg -target /
+
+      - name: Install NDI SDK (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          curl -fL "https://downloads.ndi.tv/SDK/NDI_SDK/NDI_SDK_Linux.tar.gz" \
+            -o NDI_SDK.tar.gz
+          tar -xzf NDI_SDK.tar.gz
+          sudo cp -r "NDI SDK for Linux/include/." /usr/local/include/
+          sudo cp -r "NDI SDK for Linux/lib/x86_64-linux-gnu/." /usr/local/lib/
+          sudo ldconfig
+
+      - name: Install NDI SDK (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Invoke-WebRequest `
+            "https://downloads.ndi.tv/SDK/NDI_SDK/NDI_SDK_Windows.exe" `
+            -OutFile NDI_SDK.exe
+          Start-Process -FilePath NDI_SDK.exe -Args "/S" -Wait
+
+      - name: Install system dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libasound2-dev \
+            libvulkan-dev \
+            libxcb-render0-dev \
+            libxcb-shape0-dev \
+            libxcb-xfixes0-dev \
+            libxkbcommon-dev \
+            libwayland-dev \
+            pkg-config
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.toml') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Build
+        run: cargo build --release --target ${{ matrix.target }}
+
+      # ── macOS: assemble .app bundle and wrap in a .dmg ──────────────────────
+
+      - name: Assemble .app bundle (macOS)
+        if: matrix.bundle == true
+        shell: bash
+        run: |
+          APP="dist/RustJay Delta.app"
+          mkdir -p "$APP/Contents/MacOS"
+          mkdir -p "$APP/Contents/Resources"
+
+          cp target/${{ matrix.target }}/release/${{ matrix.binary }} \
+             "$APP/Contents/MacOS/"
+
+          # Full Info.plist with bundle metadata
+          cat > "$APP/Contents/Info.plist" <<'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+            "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleIdentifier</key>
+            <string>com.bluejaylouche.rustjay-delta</string>
+            <key>CFBundleName</key>
+            <string>RustJay Delta</string>
+            <key>CFBundleDisplayName</key>
+            <string>RustJay Delta</string>
+            <key>CFBundleVersion</key>
+            <string>${{ github.ref_name }}</string>
+            <key>CFBundleShortVersionString</key>
+            <string>${{ github.ref_name }}</string>
+            <key>CFBundleExecutable</key>
+            <string>rustjay-delta</string>
+            <key>CFBundlePackageType</key>
+            <string>APPL</string>
+            <key>NSHighResolutionCapable</key>
+            <true/>
+            <key>NSCameraUsageDescription</key>
+            <string>RustJay needs camera access for live video input.</string>
+            <key>NSMicrophoneUsageDescription</key>
+            <string>RustJay needs microphone access for audio-reactive visuals.</string>
+          </dict>
+          </plist>
+          PLIST
+
+      - name: Create .dmg (macOS)
+        if: matrix.bundle == true
+        shell: bash
+        run: |
+          hdiutil create \
+            -volname "RustJay Delta" \
+            -srcfolder "dist/RustJay Delta.app" \
+            -ov -format UDZO \
+            "${{ matrix.archive }}.dmg"
+
+      # ── Linux / Windows: plain archive ──────────────────────────────────────
+
+      - name: Package (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          mkdir dist
+          cp target/${{ matrix.target }}/release/${{ matrix.binary }} dist/
+          tar -czf ${{ matrix.archive }}.tar.gz -C dist ${{ matrix.binary }}
+
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          mkdir dist
+          copy target\${{ matrix.target }}\release\${{ matrix.binary }} dist\
+          Compress-Archive -Path dist\${{ matrix.binary }} `
+            -DestinationPath ${{ matrix.archive }}.zip
+
+      # ── Upload all artifacts to the GitHub release ───────────────────────────
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ${{ matrix.archive }}.dmg
+            ${{ matrix.archive }}.tar.gz
+            ${{ matrix.archive }}.zip
