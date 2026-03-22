@@ -76,8 +76,8 @@ imgui-winit-support = "0.13"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 # Syphon (macOS GPU texture sharing)
-syphon-core = { path = "../syphon-rs/syphon-core" }
-syphon-wgpu = { path = "../syphon-rs/syphon-wgpu" }
+syphon-core = { git = "https://github.com/BlueJayLouche/syphon-rs", package = "syphon-core" }
+syphon-wgpu = { git = "https://github.com/BlueJayLouche/syphon-rs", package = "syphon-wgpu" }
 metal = "0.29"
 cocoa = "0.25"
 objc = "0.2"
