@@ -53,62 +53,35 @@ impl ControlGui {
         // Preset management buttons
         ui.text("Preset Management");
 
-        if ui.button("Save New Preset") {
-            // TODO: Open save dialog
-            ui.open_popup("Save Preset");
-        }
-        ui.same_line();
-
-        if ui.button("Refresh List") {
-            let mut state = self.shared_state.lock().unwrap_or_else(|e| e.into_inner());
-            state.preset_command = PresetCommand::Refresh;
-        }
-
-        ui.same_line();
-
-        if ui.button("Import") {
-            // TODO: Import preset
-        }
-
-        ui.same_line();
-
-        if ui.button("Export") {
-            // TODO: Export preset
-        }
-
-        // Save preset popup — set size before begin_popup so it takes effect.
-        // imgui-rs 0.12 doesn't expose set_next_window_size on Ui, so call sys directly.
-        unsafe {
-            imgui::sys::igSetNextWindowSize(
-                imgui::sys::ImVec2 { x: 400.0, y: 0.0 },
-                imgui::sys::ImGuiCond_Appearing as i32,
-            );
-        }
-        if ui.modal_popup_config("Save Preset")
-            .resizable(false)
-            .begin_popup()
-            .is_some()
-        {
-            ui.text("Enter preset name:");
-            let _w = ui.push_item_width(-1.0);
+        if !self.saving_preset {
+            if ui.button("Save New Preset") {
+                self.saving_preset = true;
+            }
+            ui.same_line();
+            if ui.button("Refresh List") {
+                let mut state = self.shared_state.lock().unwrap_or_else(|e| e.into_inner());
+                state.preset_command = PresetCommand::Refresh;
+            }
+        } else {
+            // Inline save form — no popup needed
+            ui.text("Name:");
+            ui.same_line();
+            let _w = ui.push_item_width(-120.0);
             ui.input_text("##preset_name", &mut self.preset_name_buffer)
                 .build();
             drop(_w);
-
-            ui.spacing();
-
+            ui.same_line();
             if ui.button("Save") && !self.preset_name_buffer.is_empty() {
                 let name = self.preset_name_buffer.clone();
                 self.preset_name_buffer.clear();
+                self.saving_preset = false;
                 let mut state = self.shared_state.lock().unwrap_or_else(|e| e.into_inner());
                 state.preset_command = PresetCommand::Save { name };
-                ui.close_current_popup();
             }
-
             ui.same_line();
             if ui.button("Cancel") {
                 self.preset_name_buffer.clear();
-                ui.close_current_popup();
+                self.saving_preset = false;
             }
         }
 

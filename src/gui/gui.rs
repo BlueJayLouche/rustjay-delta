@@ -51,8 +51,9 @@ pub struct ControlGui {
     pub input_preview_texture_id: Option<imgui::TextureId>,
     pub output_preview_texture_id: Option<imgui::TextureId>,
 
-    // Preset save dialog buffer
+    // Preset save inline form
     preset_name_buffer: String,
+    saving_preset: bool,
 }
 
 impl ControlGui {
@@ -99,6 +100,7 @@ impl ControlGui {
             input_preview_texture_id: None,
             output_preview_texture_id: None,
             preset_name_buffer: String::new(),
+            saving_preset: false,
         })
     }
 
