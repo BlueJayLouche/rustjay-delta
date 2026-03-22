@@ -140,8 +140,6 @@ impl NdiReceiver {
             log::info!("[NDI] Connected to: {}", source_name);
 
             // Receive loop
-            // Pre-allocate a frame buffer; reuse allocation across frames.
-            let mut reuse_buf: Vec<u8> = Vec::new();
             let mut consecutive_errors = 0u32;
             while running.load(Ordering::SeqCst) {
                 match receiver.capture_video_ref(Duration::from_millis(100)) {
@@ -151,22 +149,19 @@ impl NdiReceiver {
                         let height = video_frame.height() as u32;
                         let frame_data = video_frame.data();
 
-                        // Copy into pre-allocated buffer instead of .to_vec()
-                        reuse_buf.clear();
-                        reuse_buf.extend_from_slice(frame_data);
+                        // Strip NDI row stride/padding to produce tightly-packed BGRA
+                        // matching bytes_per_row = width * 4 expected by the GPU upload.
+                        let data = strip_stride_bgra(frame_data, width, height);
 
-                        let expected_len = (width as usize) * (height as usize) * 4;
                         let frame = NdiFrame {
                             width,
                             height,
-                            data: std::mem::replace(&mut reuse_buf, Vec::with_capacity(expected_len)),
+                            data,
                             timestamp: Instant::now(),
                         };
 
-                        // If send fails (channel full), reclaim the buffer
-                        if let Err(e) = frame_tx.try_send(frame) {
-                            reuse_buf = e.into_inner().data;
-                        }
+                        // Non-blocking send — drop frame if channel is full
+                        let _ = frame_tx.try_send(frame);
                     }
                     Ok(None) => {}
                     Err(e) => {
@@ -229,6 +224,33 @@ impl Drop for NdiReceiver {
     fn drop(&mut self) {
         self.stop();
     }
+}
+
+/// Strip NDI row stride/padding from raw frame data.
+///
+/// NDI frames may have row-aligned padding (e.g. IOSurface stride alignment on macOS).
+/// This produces tightly-packed BGRA bytes ready to upload to a `Bgra8Unorm` wgpu
+/// texture with `bytes_per_row = width * 4`. No channel swap needed since
+/// `ReceiverColorFormat::BGRX_BGRA` already matches `Bgra8Unorm`.
+fn strip_stride_bgra(data: &[u8], width: u32, height: u32) -> Vec<u8> {
+    let row_bytes = width as usize * 4;
+    let mut out = vec![0u8; row_bytes * height as usize];
+
+    let actual_stride = if height > 0 {
+        data.len() / height as usize
+    } else {
+        row_bytes
+    };
+
+    for y in 0..height as usize {
+        let src = y * actual_stride;
+        let dst = y * row_bytes;
+        if src + row_bytes <= data.len() {
+            out[dst..dst + row_bytes].copy_from_slice(&data[src..src + row_bytes]);
+        }
+    }
+
+    out
 }
 
 /// Global NDI availability check
