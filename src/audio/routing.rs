@@ -201,7 +201,7 @@ impl AudioRoute {
 }
 
 /// Manages all audio-to-parameter routings
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RoutingMatrix {
     routes: Vec<AudioRoute>,
     #[serde(skip)]
@@ -388,6 +388,11 @@ impl RoutingMatrix {
             route.reset();
         }
     }
+
+    /// Fix next_id after deserialization (serde skips it, defaults to 0)
+    pub fn fix_next_id(&mut self) {
+        self.next_id = self.routes.iter().map(|r| r.id).max().map_or(0, |id| id + 1);
+    }
 }
 
 impl Default for RoutingMatrix {
@@ -397,7 +402,7 @@ impl Default for RoutingMatrix {
 }
 
 /// Audio routing state for the app
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AudioRoutingState {
     /// The routing matrix
     pub matrix: RoutingMatrix,

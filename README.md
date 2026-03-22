@@ -59,11 +59,17 @@ Static areas produce near-zero motion signal and remain dark or neutral. Moving 
 
 ### Modulation
 
-- **LFO** — 3 banks with Sine, Triangle, Ramp, Saw, Square waveforms; tempo sync
-- **Audio reactivity** — 8-band FFT routed to any parameter; beat detection
+- **LFO** — 3 banks with Sine, Triangle, Ramp, Saw, Square waveforms; tempo sync; targets any motion parameter
+- **Audio routing** — 8-band FFT routed to any parameter with per-route attack/release envelopes; beat detection
 - **MIDI** — CC mapping with learn mode
 - **OSC** — UDP server (port 9000)
 - **Web remote** — WebSocket interface (port 8080)
+
+### Presets
+
+- Save/load full parameter snapshots including motion, LFO, and audio routing settings
+- 8 quick-access slots for live performance
+- Backward-compatible JSON format — older presets load with default LFO/routing values
 
 ### Inputs / Outputs
 
@@ -140,11 +146,13 @@ cargo run --release
 - Grayscale input toggle
 - Input mix, trail fade, threshold, smoothing
 - Preset buttons
+- Open LFO window — 3 independent LFOs with waveform preview, tempo sync, and per-LFO target assignment
 
 #### Audio Tab
 - Device selection
 - Amplitude, smoothing, normalization
-- 8-band FFT display and routing matrix
+- 8-band FFT display
+- Audio routing matrix — map any FFT band to any motion parameter with independent attack/release envelopes
 - Beat detection, tap tempo
 
 #### Output Tab

@@ -448,12 +448,23 @@ impl WgpuEngine {
             };
             
             // Apply audio routing if enabled
-            let params = if state.audio_routing.enabled {
+            let mut params = if state.audio_routing.enabled {
                 state.audio_routing.matrix.apply_to_params(&state.motion_params)
             } else {
                 state.motion_params
             };
-            
+
+            // Apply LFO modulation on top of audio routing
+            let (rd, gd, bd, intensity, mix, fade, thresh, smooth) = state.lfo.apply_to_motion();
+            params.red_delay = ((params.red_delay as f32 + rd).round() as u32).clamp(0, 16);
+            params.green_delay = ((params.green_delay as f32 + gd).round() as u32).clamp(0, 16);
+            params.blue_delay = ((params.blue_delay as f32 + bd).round() as u32).clamp(0, 16);
+            params.intensity = (params.intensity + intensity).clamp(0.0, 1.0);
+            params.input_mix = (params.input_mix + mix).clamp(0.0, 1.0);
+            params.trail_fade = (params.trail_fade + fade).clamp(0.0, 1.0);
+            params.threshold = (params.threshold + thresh).clamp(0.0, 1.0);
+            params.smoothing = (params.smoothing + smooth).clamp(0.0, 1.0);
+
             (params, state.motion_enabled)
         };
 

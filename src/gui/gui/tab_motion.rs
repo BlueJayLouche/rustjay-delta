@@ -207,6 +207,41 @@ impl ControlGui {
                 let mut state = self.shared_state.lock().unwrap();
                 state.motion_params.smoothing = params.smoothing;
             }
+
+            ui.spacing();
+            ui.separator();
+            ui.spacing();
+
+            // === LFO MODULATION ===
+            ui.text_colored([0.0, 1.0, 1.0, 1.0], "LFO Modulation");
+
+            if ui.button("Open LFO Window") {
+                let mut state = self.shared_state.lock().unwrap();
+                state.lfo.show_window = true;
+            }
+
+            // Show active LFO summary
+            {
+                let state = self.shared_state.lock().unwrap();
+                let active_count = state.lfo.bank.lfos.iter()
+                    .filter(|l| l.enabled && l.target != crate::core::lfo::LfoTarget::None)
+                    .count();
+                if active_count > 0 {
+                    ui.same_line();
+                    ui.text(format!("{} active", active_count));
+                    for lfo in &state.lfo.bank.lfos {
+                        if lfo.enabled && lfo.target != crate::core::lfo::LfoTarget::None {
+                            ui.text_disabled(format!("  LFO {} → {} ({:.0}%)",
+                                lfo.index + 1,
+                                lfo.target.name(),
+                                lfo.amplitude * 100.0
+                            ));
+                        }
+                    }
+                } else {
+                    ui.text_disabled("No active LFOs");
+                }
+            }
         }
     }
 }

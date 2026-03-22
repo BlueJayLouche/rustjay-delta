@@ -2,7 +2,9 @@
 //!
 //! Save and load parameter snapshots with quick preset selector.
 
+use crate::audio::routing::AudioRoutingState;
 use crate::core::{MotionParams, SharedState};
+use crate::core::lfo::LfoBank;
 use serde::{Deserialize, Serialize};
 
 /// Commands for preset management
@@ -44,6 +46,14 @@ pub struct Preset {
     pub internal_width: u32,
     pub internal_height: u32,
     
+    // LFO bank (3 LFOs)
+    #[serde(default)]
+    pub lfo_bank: LfoBank,
+
+    // Audio routing state (enabled + matrix of routes with attack/release)
+    #[serde(default)]
+    pub audio_routing: AudioRoutingState,
+
     // Custom parameters (for extensibility)
     #[serde(default)]
     pub custom_values: HashMap<String, f32>,
@@ -67,6 +77,8 @@ impl Preset {
             audio_pink_noise: state.audio.pink_noise_shaping,
             internal_width: state.resolution.internal_width,
             internal_height: state.resolution.internal_height,
+            lfo_bank: state.lfo.bank.clone(),
+            audio_routing: state.audio_routing.clone(),
             custom_values: HashMap::new(),
         }
     }
@@ -81,6 +93,19 @@ impl Preset {
         state.audio.pink_noise_shaping = self.audio_pink_noise;
         state.resolution.internal_width = self.internal_width;
         state.resolution.internal_height = self.internal_height;
+
+        // Restore LFO settings
+        state.lfo.bank = self.lfo_bank.clone();
+
+        // Restore audio routing settings (preserve window/UI state)
+        let show_window = state.audio_routing.show_window;
+        let selected_band = state.audio_routing.selected_band;
+        let selected_target = state.audio_routing.selected_target;
+        state.audio_routing = self.audio_routing.clone();
+        state.audio_routing.show_window = show_window;
+        state.audio_routing.selected_band = selected_band;
+        state.audio_routing.selected_target = selected_target;
+        state.audio_routing.matrix.fix_next_id();
     }
     
     /// Save preset to file
