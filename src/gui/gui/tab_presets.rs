@@ -55,7 +55,7 @@ impl ControlGui {
 
         if ui.button("Save New Preset") {
             // TODO: Open save dialog
-            ui.open_popup("save_preset_popup");
+            ui.open_popup("Save Preset");
         }
         ui.same_line();
 
@@ -77,20 +77,22 @@ impl ControlGui {
         }
 
         // Save preset popup
-        let mut preset_name_buffer = String::with_capacity(256);
-        if ui.modal_popup_config("save_preset_popup")
+        if ui.modal_popup_config("Save Preset")
             .resizable(false)
             .always_auto_resize(true)
             .begin_popup()
             .is_some()
         {
             ui.text("Enter preset name:");
-
-            ui.input_text("##preset_name", &mut preset_name_buffer)
+            ui.set_next_item_width(300.0);
+            ui.input_text("##preset_name", &mut self.preset_name_buffer)
                 .build();
 
-            if ui.button("Save") && !preset_name_buffer.is_empty() {
-                let name = preset_name_buffer.clone();
+            ui.spacing();
+
+            if ui.button("Save") && !self.preset_name_buffer.is_empty() {
+                let name = self.preset_name_buffer.clone();
+                self.preset_name_buffer.clear();
                 let mut state = self.shared_state.lock().unwrap_or_else(|e| e.into_inner());
                 state.preset_command = PresetCommand::Save { name };
                 ui.close_current_popup();
@@ -98,6 +100,7 @@ impl ControlGui {
 
             ui.same_line();
             if ui.button("Cancel") {
+                self.preset_name_buffer.clear();
                 ui.close_current_popup();
             }
         }

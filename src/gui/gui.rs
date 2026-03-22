@@ -50,6 +50,9 @@ pub struct ControlGui {
     // Preview texture IDs
     pub input_preview_texture_id: Option<imgui::TextureId>,
     pub output_preview_texture_id: Option<imgui::TextureId>,
+
+    // Preset save dialog buffer
+    preset_name_buffer: String,
 }
 
 impl ControlGui {
@@ -95,6 +98,7 @@ impl ControlGui {
             v4l2_device_path: "/dev/video10".to_string(),
             input_preview_texture_id: None,
             output_preview_texture_id: None,
+            preset_name_buffer: String::new(),
         })
     }
 
