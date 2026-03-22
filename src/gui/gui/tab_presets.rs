@@ -4,43 +4,55 @@ use crate::core::PresetCommand;
 impl ControlGui {
     /// Build the Presets tab
     pub(super) fn build_presets_tab(&mut self, ui: &imgui::Ui) {
-        ui.text("Quick Presets");
-        ui.separator();
+        let (preset_names, slot_names) = {
+            let state = self.shared_state.lock().unwrap_or_else(|e| e.into_inner());
+            (state.preset_names.clone(), state.preset_quick_slot_names.clone())
+        };
 
-        // Quick preset slots (1-8)
-        let button_size = [80.0, 60.0];
+        // ── Quick Slots ──────────────────────────────────────────────────────
+        ui.text("Quick Slots");
+        ui.separator();
+        ui.new_line();
+
+        let button_size = [80.0, 50.0];
         let spacing = 8.0;
         let total_width = 4.0 * button_size[0] + 3.0 * spacing;
         let start_x = (ui.window_content_region_max()[0] - ui.window_content_region_min()[0] - total_width) / 2.0;
 
-        ui.new_line();
-
         for row in 0..2 {
             let y_pos = ui.cursor_screen_pos()[1];
-
             for col in 0..4 {
                 let slot = row * 4 + col + 1;
                 let x_pos = start_x + col as f32 * (button_size[0] + spacing);
-
                 ui.set_cursor_screen_pos([x_pos, y_pos]);
 
-                let label = format!("{}", slot);
-                let is_active = false; // TODO: Check if slot has preset
-
-                let button_color = if is_active {
+                let has_preset = slot_names[slot - 1].is_some();
+                let color = if has_preset {
                     [0.2, 0.6, 1.0, 1.0]
                 } else {
                     [0.3, 0.3, 0.3, 1.0]
                 };
 
-                let _style = ui.push_style_color(imgui::StyleColor::Button, button_color);
-                if ui.button_with_size(&label, button_size) {
+                let label = if let Some(ref name) = slot_names[slot - 1] {
+                    // Truncate long names to fit button
+                    let short: String = name.chars().take(7).collect();
+                    format!("{}\n{}", slot, short)
+                } else {
+                    format!("{}\n--", slot)
+                };
+
+                let _col = ui.push_style_color(imgui::StyleColor::Button, color);
+                if ui.button_with_size(&label, button_size) && has_preset {
                     let mut state = self.shared_state.lock().unwrap_or_else(|e| e.into_inner());
                     state.preset_command = PresetCommand::ApplySlot(slot);
                 }
 
                 if ui.is_item_hovered() {
-                    ui.tooltip_text(format!("Quick slot {} (Shift+F{})", slot, slot));
+                    if let Some(ref name) = slot_names[slot - 1] {
+                        ui.tooltip_text(format!("Slot {}: {} (click to apply)", slot, name));
+                    } else {
+                        ui.tooltip_text(format!("Slot {} — right-click a preset below to assign", slot));
+                    }
                 }
 
                 ui.same_line_with_spacing(0.0, spacing);
@@ -48,11 +60,11 @@ impl ControlGui {
             ui.new_line();
         }
 
+        ui.spacing();
         ui.separator();
+        ui.spacing();
 
-        // Preset management buttons
-        ui.text("Preset Management");
-
+        // ── Preset Management ─────────────────────────────────────────────────
         if !self.saving_preset {
             if ui.button("Save New Preset") {
                 self.saving_preset = true;
@@ -63,7 +75,6 @@ impl ControlGui {
                 state.preset_command = PresetCommand::Refresh;
             }
         } else {
-            // Inline save form — no popup needed
             ui.text("Name:");
             ui.same_line();
             let _w = ui.push_item_width(-120.0);
@@ -85,17 +96,65 @@ impl ControlGui {
             }
         }
 
-        ui.separator();
+        ui.spacing();
 
-        // Preset list
-        ui.text("Available Presets");
-        ui.text_disabled("(Click to load, Right-click for options)");
+        // ── Preset List ───────────────────────────────────────────────────────
+        if preset_names.is_empty() {
+            ui.text_disabled("No presets saved yet.");
+        } else {
+            ui.text(format!("{} preset(s)  —  click to load, right-click to assign to slot", preset_names.len()));
+        }
 
         ui.child_window("presets_list")
-            .size([0.0, 200.0])
+            .size([0.0, 0.0])
             .build(|| {
-                // TODO: List actual presets from PresetBank
-                ui.text_disabled("No presets loaded (PresetBank integration needed)");
+                for (index, name) in preset_names.iter().enumerate() {
+                    let _col = ui.push_style_color(
+                        imgui::StyleColor::Header,
+                        [0.2, 0.4, 0.7, 1.0],
+                    );
+                    let selected = false;
+                    if ui.selectable_config(name).selected(selected).build() {
+                        let mut state = self.shared_state.lock().unwrap_or_else(|e| e.into_inner());
+                        state.preset_command = PresetCommand::Load(index);
+                    }
+                    drop(_col);
+
+                    // Right-click context menu: assign to slot or delete
+                    if ui.is_item_hovered() && ui.is_mouse_clicked(imgui::MouseButton::Right) {
+                        ui.open_popup(format!("##preset_ctx_{}", index));
+                    }
+
+                    if let Some(_popup) = ui.begin_popup(format!("##preset_ctx_{}", index)) {
+                        ui.text_disabled(name);
+                        ui.separator();
+                        if ui.menu_item("Load") {
+                            let mut state = self.shared_state.lock().unwrap_or_else(|e| e.into_inner());
+                            state.preset_command = PresetCommand::Load(index);
+                        }
+                        ui.separator();
+                        ui.text_disabled("Assign to slot:");
+                        for slot in 1..=8usize {
+                            let slot_label = if let Some(ref sname) = slot_names[slot - 1] {
+                                format!("Slot {} ({})", slot, sname)
+                            } else {
+                                format!("Slot {} — empty", slot)
+                            };
+                            if ui.menu_item(&slot_label) {
+                                let mut state = self.shared_state.lock().unwrap_or_else(|e| e.into_inner());
+                                state.preset_command = PresetCommand::AssignSlot {
+                                    preset_index: index,
+                                    slot,
+                                };
+                            }
+                        }
+                        ui.separator();
+                        if ui.menu_item("Delete") {
+                            let mut state = self.shared_state.lock().unwrap_or_else(|e| e.into_inner());
+                            state.preset_command = PresetCommand::Delete(index);
+                        }
+                    }
+                }
             });
     }
 }

@@ -454,6 +454,10 @@ pub struct SharedState {
     
     // Preset commands
     pub preset_command: PresetCommand,
+    /// Names of all available presets (synced from PresetBank after each command)
+    pub preset_names: Vec<String>,
+    /// Names assigned to quick slots 1-8 (None = empty)
+    pub preset_quick_slot_names: [Option<String>; 8],
     
     // Settings save request flag
     pub save_settings_requested: bool,
@@ -552,6 +556,8 @@ impl SharedState {
             osc_enabled: false,
             osc_port: 9000,
             preset_command: PresetCommand::None,
+            preset_names: Vec::new(),
+            preset_quick_slot_names: Default::default(),
             save_settings_requested: false,
             
             web_command: WebCommand::None,
