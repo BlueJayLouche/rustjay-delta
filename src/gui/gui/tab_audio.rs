@@ -74,9 +74,9 @@ impl ControlGui {
 
         if enabled {
             // Get additional audio settings
-            let (mut normalize, mut pink_noise) = {
+            let (mut normalize, mut pink_noise, current_fft_size) = {
                 let state = self.shared_state.lock().unwrap_or_else(|e| e.into_inner());
-                (state.audio.normalize, state.audio.pink_noise_shaping)
+                (state.audio.normalize, state.audio.pink_noise_shaping, state.audio.fft_size)
             };
 
             // Amplitude
@@ -91,6 +91,27 @@ impl ControlGui {
             if ui.slider("Smoothing", 0.0, 0.95, &mut smoothing) {
                 let mut state = self.shared_state.lock().unwrap_or_else(|e| e.into_inner());
                 state.audio.smoothing = smoothing.clamp(0.0, 0.99);
+            }
+
+            ui.spacing();
+            ui.separator();
+            ui.spacing();
+
+            // FFT Size dropdown
+            {
+                use crate::audio::fft::{FFT_SIZES, FFT_SIZE_LABELS};
+                let mut selected_idx = FFT_SIZES.iter().position(|&s| s == current_fft_size).unwrap_or(2);
+                let labels: Vec<&str> = FFT_SIZE_LABELS.iter().copied().collect();
+                ui.text("FFT Size");
+                if ui.combo_simple_string("FFT Size##combo", &mut selected_idx, &labels) {
+                    if let Some(&new_size) = FFT_SIZES.get(selected_idx) {
+                        if new_size != current_fft_size {
+                            let mut state = self.shared_state.lock().unwrap_or_else(|e| e.into_inner());
+                            state.audio.fft_size = new_size;
+                            state.audio_command = AudioCommand::SetFftSize(new_size);
+                        }
+                    }
+                }
             }
 
             ui.spacing();
