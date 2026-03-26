@@ -1,6 +1,6 @@
-//! # RustJay Template
+//! # RustJay Delta
 //!
-//! A high-performance video processing template for RustJay VJ applications.
+//! A GPU-accelerated motion extraction VJ tool based on Posy's RGB delay technique.
 //!
 //! ## Features
 //! - Single video input with hot-swappable sources (Webcam, NDI, Syphon)
@@ -54,7 +54,7 @@ fn main() -> anyhow::Result<()> {
         .filter_module("tracing::span", log::LevelFilter::Warn)
         .init();
 
-    info!("Starting RustJay Template v{}", env!("CARGO_PKG_VERSION"));
+    info!("Starting RustJay Delta v{}", env!("CARGO_PKG_VERSION"));
 
     // Create shared state
     let shared_state = Arc::new(Mutex::new(SharedState::new()));

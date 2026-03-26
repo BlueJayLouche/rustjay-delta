@@ -120,7 +120,7 @@ impl App {
 
         // Initialize OSC server
         let osc_server = {
-            let mut server = OscServer::new(9000, "/rustjay");
+            let mut server = OscServer::new(9000, "/rustjay-delta");
             if let Ok(mut state) = server.state().lock() {
                 state.register_default_parameters();
             }

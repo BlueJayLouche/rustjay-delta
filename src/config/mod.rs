@@ -42,7 +42,7 @@ impl Default for OscConfig {
         Self {
             port: 9000,
             enabled: false,
-            base_address: "/rustjay".to_string(),
+            base_address: "/rustjay-delta".to_string(),
         }
     }
 }

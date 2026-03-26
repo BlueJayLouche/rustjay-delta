@@ -87,7 +87,7 @@ impl ApplicationHandler for App {
                 let queue = Arc::clone(&engine.queue);
 
                 let window_attrs = WindowAttributes::default()
-                    .with_title("RustJay Template - Control")
+                    .with_title("RustJay Delta - Control")
                     .with_inner_size(winit::dpi::LogicalSize::new(1200, 800))
                     .with_resizable(true)
                     .with_decorations(true);

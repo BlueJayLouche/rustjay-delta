@@ -309,7 +309,7 @@ impl App {
             OscCommand::SetPort(port) => {
                 if let Some(ref mut server) = self.osc_server {
                     server.stop();
-                    let mut new_server = OscServer::new(port, "/rustjay");
+                    let mut new_server = OscServer::new(port, "/rustjay-delta");
                     if let Ok(mut state) = new_server.state().lock() {
                         state.register_default_parameters();
                     }

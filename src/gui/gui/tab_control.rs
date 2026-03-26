@@ -174,45 +174,45 @@ impl ControlGui {
 
         if ui.collapsing_header("Motion", imgui::TreeNodeFlags::DEFAULT_OPEN) {
             ui.indent();
-            ui.text("/rustjay/motion/red_delay");
+            ui.text("/rustjay-delta/motion/red_delay");
             ui.text_disabled("  Range: 0.0 - 1.0 (maps to 0 to 16)");
 
-            ui.text("/rustjay/motion/green_delay");
+            ui.text("/rustjay-delta/motion/green_delay");
             ui.text_disabled("  Range: 0.0 - 1.0 (maps to 0 to 16)");
 
-            ui.text("/rustjay/motion/blue_delay");
+            ui.text("/rustjay-delta/motion/blue_delay");
             ui.text_disabled("  Range: 0.0 - 1.0 (maps to 0 to 16)");
 
-            ui.text("/rustjay/motion/intensity");
+            ui.text("/rustjay-delta/motion/intensity");
             ui.text_disabled("  Range: 0.0 - 1.0");
 
-            ui.text("/rustjay/motion/enabled");
+            ui.text("/rustjay-delta/motion/enabled");
             ui.text_disabled("  Range: 0.0 or 1.0");
             ui.unindent();
         }
 
         if ui.collapsing_header("Audio", imgui::TreeNodeFlags::empty()) {
             ui.indent();
-            ui.text("/rustjay/audio/amplitude");
+            ui.text("/rustjay-delta/audio/amplitude");
             ui.text_disabled("  Range: 0.0 - 1.0 (maps to 0 to 5)");
 
-            ui.text("/rustjay/audio/smoothing");
+            ui.text("/rustjay-delta/audio/smoothing");
             ui.text_disabled("  Range: 0.0 - 1.0");
 
-            ui.text("/rustjay/audio/enabled");
+            ui.text("/rustjay-delta/audio/enabled");
             ui.text_disabled("  Range: 0.0 or 1.0");
             ui.unindent();
         }
 
         if ui.collapsing_header("Output", imgui::TreeNodeFlags::empty()) {
             ui.indent();
-            ui.text("/rustjay/output/fullscreen");
+            ui.text("/rustjay-delta/output/fullscreen");
             ui.text_disabled("  Range: 0.0 or 1.0");
 
-            ui.text("/rustjay/output/width");
+            ui.text("/rustjay-delta/output/width");
             ui.text_disabled("  Range: 0.0 - 1.0 (maps to 320 to 4096)");
 
-            ui.text("/rustjay/output/height");
+            ui.text("/rustjay-delta/output/height");
             ui.text_disabled("  Range: 0.0 - 1.0 (maps to 240 to 2160)");
             ui.unindent();
         }
@@ -281,7 +281,7 @@ impl ControlGui {
             ui.text_colored([0.0, 1.0, 1.0, 1.0], "Access URL:");
 
             let local_ip = super::get_local_ip().unwrap_or_else(|| "localhost".to_string());
-            let url = format!("http://{}:{}/rustjay", local_ip, port);
+            let url = format!("http://{}:{}/rustjay-delta", local_ip, port);
 
             ui.text(&url);
 

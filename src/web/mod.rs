@@ -39,7 +39,7 @@ impl Default for WebConfig {
     fn default() -> Self {
         Self {
             port: 8080,
-            app_name: "rustjay".to_string(),
+            app_name: "rustjay-delta".to_string(),
             enabled: false,
         }
     }
