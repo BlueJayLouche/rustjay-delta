@@ -3,56 +3,80 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
 
 permissions:
   contents: write
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
-  build:
-    name: Build (${{ matrix.name }})
-    runs-on: ${{ matrix.runner }}
+  build-macos:
+    name: Build macOS (${{ matrix.target }})
+    runs-on: macos-latest
     strategy:
       fail-fast: false
       matrix:
         include:
-          - name: macOS Apple Silicon
-            runner: macos-latest
-            target: aarch64-apple-darwin
-            binary: rustjay-delta
-            archive: rustjay-delta-macos-arm64
-            bundle: true
-
-          - name: macOS Intel
-            runner: macos-13
-            target: x86_64-apple-darwin
-            binary: rustjay-delta
-            archive: rustjay-delta-macos-x86_64
-            bundle: true
-
-          - name: Linux x86_64
-            runner: ubuntu-22.04
-            target: x86_64-unknown-linux-gnu
-            binary: rustjay-delta
-            archive: rustjay-delta-linux-x86_64
-            bundle: false
-
-          - name: Windows x86_64
-            runner: windows-latest
-            target: x86_64-pc-windows-msvc
-            binary: rustjay-delta.exe
-            archive: rustjay-delta-windows-x86_64
-            bundle: false
-
+          - target: aarch64-apple-darwin
+            asset: rustjay-delta-macos-arm64
+          - target: x86_64-apple-darwin
+            asset: rustjay-delta-macos-x86_64
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      # NDI SDK is NOT installed in CI — builds use --no-default-features which
-      # excludes the ndi feature.  Users who want NDI build from source with
-      # --features ndi after installing the NDI SDK from https://ndi.video/tools/
-      - name: Install system dependencies (Linux)
-        if: runner.os == 'Linux'
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: macos-${{ matrix.target }}-release-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: macos-${{ matrix.target }}-release-
+
+      - name: Build
+        run: cargo build --release --target ${{ matrix.target }} --no-default-features --features webcam
+
+      - name: Create .app bundle
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          APP="RustJay Delta.app"
+          mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+          cp target/${{ matrix.target }}/release/rustjay-delta "$APP/Contents/MacOS/"
+          chmod +x "$APP/Contents/MacOS/"*
+          sed "s/VERSION/$VERSION/g" macos/Info.plist > "$APP/Contents/Info.plist"
+          cp macos/AppIcon.icns "$APP/Contents/Resources/"
+
+      - name: Ad-hoc code sign
+        run: codesign --force --deep -s - "RustJay Delta.app"
+
+      - name: Create .dmg
+        run: |
+          hdiutil create -volname "RustJay Delta" \
+            -srcfolder "RustJay Delta.app" \
+            -ov -format UDZO \
+            ${{ matrix.asset }}.dmg
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset }}
+          path: ${{ matrix.asset }}.dmg
+
+  build-linux:
+    name: Build Linux
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -65,108 +89,88 @@ jobs:
             libwayland-dev \
             pkg-config
 
-      - name: Install Rust
+      - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
 
-      - name: Cache Cargo registry
+      - name: Cache cargo
         uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.toml') }}
-          restore-keys: ${{ runner.os }}-cargo-
+            target
+          key: linux-x86_64-release-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: linux-x86_64-release-
 
       - name: Build
+        run: cargo build --release --target x86_64-unknown-linux-gnu --no-default-features --features webcam
+
+      - name: Package
         run: |
-          if [ "${{ runner.os }}" = "macOS" ]; then
-            cargo build --release --target ${{ matrix.target }} --no-default-features --features webcam,syphon
-          elif [ "${{ runner.os }}" = "Linux" ]; then
-            cargo build --release --target ${{ matrix.target }} --no-default-features --features webcam
-          else
-            cargo build --release --target ${{ matrix.target }} --no-default-features --features webcam
-          fi
+          mkdir -p dist
+          cp target/x86_64-unknown-linux-gnu/release/rustjay-delta dist/
+          chmod +x dist/*
+          cd dist && tar czf ../rustjay-delta-linux-x86_64.tar.gz *
 
-      # ── macOS: assemble .app bundle and wrap in a .dmg ──────────────────────
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rustjay-delta-linux-x86_64
+          path: rustjay-delta-linux-x86_64.tar.gz
 
-      - name: Assemble .app bundle (macOS)
-        if: matrix.bundle == true
-        shell: bash
-        run: |
-          APP="dist/RustJay Delta.app"
-          mkdir -p "$APP/Contents/MacOS"
-          mkdir -p "$APP/Contents/Resources"
+  build-windows:
+    name: Build Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
 
-          cp target/${{ matrix.target }}/release/${{ matrix.binary }} \
-             "$APP/Contents/MacOS/"
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
 
-          # Full Info.plist with bundle metadata
-          cat > "$APP/Contents/Info.plist" <<'PLIST'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
-            "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-            <key>CFBundleIdentifier</key>
-            <string>com.bluejaylouche.rustjay-delta</string>
-            <key>CFBundleName</key>
-            <string>RustJay Delta</string>
-            <key>CFBundleDisplayName</key>
-            <string>RustJay Delta</string>
-            <key>CFBundleVersion</key>
-            <string>${{ github.ref_name }}</string>
-            <key>CFBundleShortVersionString</key>
-            <string>${{ github.ref_name }}</string>
-            <key>CFBundleExecutable</key>
-            <string>rustjay-delta</string>
-            <key>CFBundlePackageType</key>
-            <string>APPL</string>
-            <key>NSHighResolutionCapable</key>
-            <true/>
-            <key>NSCameraUsageDescription</key>
-            <string>RustJay needs camera access for live video input.</string>
-            <key>NSMicrophoneUsageDescription</key>
-            <string>RustJay needs microphone access for audio-reactive visuals.</string>
-          </dict>
-          </plist>
-          PLIST
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: windows-x86_64-release-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: windows-x86_64-release-
 
-      - name: Create .dmg (macOS)
-        if: matrix.bundle == true
-        shell: bash
-        run: |
-          hdiutil create \
-            -volname "RustJay Delta" \
-            -srcfolder "dist/RustJay Delta.app" \
-            -ov -format UDZO \
-            "${{ matrix.archive }}.dmg"
+      - name: Build
+        run: cargo build --release --target x86_64-pc-windows-msvc --no-default-features --features webcam
 
-      # ── Linux / Windows: plain archive ──────────────────────────────────────
-
-      - name: Package (Linux)
-        if: runner.os == 'Linux'
+      - name: Package
         run: |
           mkdir dist
-          cp target/${{ matrix.target }}/release/${{ matrix.binary }} dist/
-          tar -czf ${{ matrix.archive }}.tar.gz -C dist ${{ matrix.binary }}
-
-      - name: Package (Windows)
-        if: runner.os == 'Windows'
+          copy target\x86_64-pc-windows-msvc\release\rustjay-delta.exe dist\
+          cd dist
+          Compress-Archive -Path * -DestinationPath ..\rustjay-delta-windows-x86_64.zip
         shell: pwsh
-        run: |
-          mkdir dist
-          copy target\${{ matrix.target }}\release\${{ matrix.binary }} dist\
-          Compress-Archive -Path dist\${{ matrix.binary }} `
-            -DestinationPath ${{ matrix.archive }}.zip
 
-      # ── Upload all artifacts to the GitHub release ───────────────────────────
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rustjay-delta-windows-x86_64
+          path: rustjay-delta-windows-x86_64.zip
 
-      - name: Upload to release
+  release:
+    name: Create Release
+    needs: [build-macos, build-linux, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          generate_release_notes: true
           files: |
-            ${{ matrix.archive }}.dmg
-            ${{ matrix.archive }}.tar.gz
-            ${{ matrix.archive }}.zip
+            artifacts/**/*.dmg
+            artifacts/**/*.tar.gz
+            artifacts/**/*.zip
