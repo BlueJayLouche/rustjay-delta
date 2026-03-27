@@ -78,7 +78,20 @@ Static areas produce near-zero motion signal and remain dark or neutral. Moving 
 | **In** | Webcam, NDI, Syphon (macOS), Spout (Windows), V4L2 (Linux) |
 | **Out** | NDI, Syphon (macOS), Spout (Windows), V4L2 (Linux), screen |
 
-## Building
+## Install
+
+Pre-built binaries are available on the [Releases](https://github.com/BlueJayLouche/rustjay-delta/releases) page.
+
+| Platform | Format | Notes |
+|----------|--------|-------|
+| macOS Apple Silicon | `.dmg` | Ad-hoc signed. Right-click → Open on first launch. |
+| macOS Intel | `.dmg` | Ad-hoc signed. Right-click → Open on first launch. |
+
+Download the `.dmg`, open it, and drag RustJay Delta to your Applications folder.
+
+> NDI and Syphon are not included in release builds. For NDI/Syphon support, build from source with `cargo build --release`.
+
+## Building from Source
 
 ### Requirements
 
