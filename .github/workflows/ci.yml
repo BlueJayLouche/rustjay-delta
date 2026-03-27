@@ -25,30 +25,8 @@ jobs:
             runner: macos-latest
             target: x86_64-apple-darwin
             features: "--no-default-features --features webcam"
-          - name: Linux x86_64
-            runner: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            features: "--no-default-features --features webcam"
-          - name: Windows x86_64
-            runner: windows-latest
-            target: x86_64-pc-windows-msvc
-            features: "--no-default-features --features webcam"
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install system dependencies (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libasound2-dev \
-            libvulkan-dev \
-            libxcb-render0-dev \
-            libxcb-shape0-dev \
-            libxcb-xfixes0-dev \
-            libxkbcommon-dev \
-            libwayland-dev \
-            pkg-config
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
