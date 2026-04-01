@@ -85,8 +85,17 @@ core-foundation = "0.10"
 core-graphics = "0.24"
 
 [target.'cfg(target_os = "windows")'.dependencies]
-# Spout (Windows GPU texture sharing) — TODO: identify and add crate on Windows
-# See PORTING_GUIDE.md for instructions
+# Spout (Windows GPU texture sharing) — implemented via windows crate D3D11 directly
+windows = { version = "0.61", features = [
+    "Win32_Graphics_Direct3D",
+    "Win32_Graphics_Direct3D11",
+    "Win32_Graphics_Dxgi",
+    "Win32_Graphics_Dxgi_Common",
+    "Win32_Foundation",
+    "Win32_System_Memory",
+    "Win32_Security",
+    "Win32_System_LibraryLoader",
+] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 # V4L2 loopback output — TODO: uncomment when implementing on Linux
@@ -100,10 +109,10 @@ codegen-units = 1
 panic = "abort"
 
 [features]
-default = ["webcam", "ndi"]
+default = ["webcam"]
 webcam = ["nokhwa"]
 ndi = ["grafton-ndi"]
-spout = []   # Windows Spout support — fill in dep when crate is identified
+spout = []   # Windows Spout support (dep is in [target.windows.dependencies])
 v4l2 = []    # Linux V4L2 loopback output — fill in dep when implementing
 
 [profile.dev]

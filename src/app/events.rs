@@ -272,12 +272,9 @@ impl ApplicationHandler for App {
                             engine.resize(size.width, size.height);
                         }
                     }
-                    WindowEvent::RedrawRequested => {
-                        if let Some(ref mut engine) = self.output_engine {
-                            engine.render(self.output_occluded);
-                            self.update_preview_textures();
-                        }
-                    }
+                    // Note: Rendering is now done in about_to_wait() to ensure
+                    // continuous output even when the window is not focused.
+                    // Windows throttles RedrawRequested events for unfocused windows.
                     _ => {}
                 }
                 return;
@@ -312,21 +309,8 @@ impl ApplicationHandler for App {
                             renderer.set_display_size(logical_width, logical_height);
                         }
                     }
-                    WindowEvent::RedrawRequested => {
-                        if let (Some(ref mut renderer), Some(ref mut gui)) =
-                            (self.imgui_renderer.as_mut(), self.control_gui.as_mut())
-                        {
-                            let scale_factor = control_window.scale_factor();
-                            let window_size = control_window.inner_size();
-                            let logical_width = window_size.width as f32 / scale_factor as f32;
-                            let logical_height = window_size.height as f32 / scale_factor as f32;
-                            renderer.set_display_size(logical_width, logical_height);
-
-                            if let Err(err) = renderer.render_frame(|ui| gui.build_ui(ui)) {
-                                log::error!("ImGui render error: {}", err);
-                            }
-                        }
-                    }
+                    // Note: Control window rendering is now done in about_to_wait()
+                    // to ensure continuous UI updates regardless of focus.
                     _ => {}
                 }
                 return;
@@ -334,7 +318,7 @@ impl ApplicationHandler for App {
         }
     }
 
-    fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
+    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
         // Compute real elapsed time since last frame (capped to avoid spiral-of-death).
         let now = std::time::Instant::now();
         self.frame_delta_time = now
@@ -371,12 +355,39 @@ impl ApplicationHandler for App {
             self.save_settings();
         }
 
-        // Request redraws
-        if let Some(ref window) = self.output_window {
-            window.request_redraw();
+        // Render output directly here instead of relying on RedrawRequested.
+        // Windows throttles RedrawRequested events when the window isn't focused,
+        // which causes the output to freeze/go black when clicking on other windows.
+        // Rendering in about_to_wait() ensures continuous output regardless of focus.
+        if let Some(ref mut engine) = self.output_engine {
+            engine.render(self.output_occluded);
+            self.update_preview_textures();
         }
-        if let Some(ref window) = self.control_window {
-            window.request_redraw();
+
+        // Render control window UI
+        if let (Some(ref window), Some(ref mut renderer), Some(ref mut gui)) =
+            (self.control_window.as_ref(), self.imgui_renderer.as_mut(), self.control_gui.as_mut())
+        {
+            let scale_factor = window.scale_factor();
+            let window_size = window.inner_size();
+            let logical_width = window_size.width as f32 / scale_factor as f32;
+            let logical_height = window_size.height as f32 / scale_factor as f32;
+            renderer.set_display_size(logical_width, logical_height);
+
+            if let Err(err) = renderer.render_frame(|ui| gui.build_ui(ui)) {
+                log::error!("ImGui render error: {}", err);
+            }
+        }
+
+        // Cap the event loop to ~120 Hz to avoid burning CPU when vsync
+        // alone isn't throttling us (e.g. occluded output window, or the
+        // control window running at a lower refresh rate).
+        const TARGET_FRAME_DUR: std::time::Duration = std::time::Duration::from_micros(8333);
+        let elapsed = now.elapsed();
+        if elapsed < TARGET_FRAME_DUR {
+            event_loop.set_control_flow(ControlFlow::WaitUntil(
+                std::time::Instant::now() + (TARGET_FRAME_DUR - elapsed),
+            ));
         }
     }
 

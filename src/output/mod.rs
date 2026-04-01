@@ -312,15 +312,12 @@ impl OutputManager {
     }
 
     /// Start Spout output (Windows only)
-    /// TODO (Windows): implement this using SpoutOutput in spout_output.rs
     #[cfg(target_os = "windows")]
     pub fn start_spout(
         &mut self,
         sender_name: &str,
-        device: Arc<wgpu::Device>,
-        queue: Arc<wgpu::Queue>,
     ) -> anyhow::Result<()> {
-        let spout = spout_output::SpoutOutput::new(sender_name, device, queue)?;
+        let spout = spout_output::SpoutOutput::new(sender_name)?;
         self.spout_output = Some(spout);
         log::info!("Spout output started: {}", sender_name);
         Ok(())
@@ -374,10 +371,14 @@ impl OutputManager {
         false
     }
 
-    /// Returns true if any CPU-path output (NDI, V4L2) needs readback.
+    /// Returns true if any CPU-path output (NDI, Spout, V4L2) needs readback.
     fn needs_readback(&self) -> bool {
         #[cfg(feature = "ndi")]
         if self.ndi_output.is_some() {
+            return true;
+        }
+        #[cfg(target_os = "windows")]
+        if self.spout_output.is_some() {
             return true;
         }
         #[cfg(target_os = "linux")]
@@ -389,8 +390,8 @@ impl OutputManager {
 
     /// Submit frame to all active outputs.
     ///
-    /// GPU-path outputs (Syphon, Spout) receive the texture directly.
-    /// CPU-path outputs (NDI, V4L2) use the async readback pool — the
+    /// GPU-path outputs (Syphon) receive the texture directly.
+    /// CPU-path outputs (NDI, Spout, V4L2) use the async readback pool — the
     /// render thread never blocks waiting for a GPU→CPU copy.
     pub fn submit_frame(&mut self, texture: &wgpu::Texture, device: &wgpu::Device, queue: &wgpu::Queue) {
         self.frame_count += 1;
@@ -407,6 +408,13 @@ impl OutputManager {
                 #[cfg(feature = "ndi")]
                 if let Some(ref sender) = self.ndi_output {
                     sender.submit_frame(&data, width, height);
+                }
+
+                #[cfg(target_os = "windows")]
+                if let Some(ref mut spout) = self.spout_output {
+                    if let Err(e) = spout.submit_bytes(&data, width, height) {
+                        log::error!("Spout output error: {}", e);
+                    }
                 }
 
                 #[cfg(target_os = "linux")]
@@ -426,14 +434,6 @@ impl OutputManager {
         if let Some(ref mut syphon) = self.syphon_output {
             if let Err(e) = syphon.submit_frame(texture, device, queue) {
                 log::error!("Syphon output error: {}", e);
-            }
-        }
-
-        // Spout output (zero-copy on Windows)
-        #[cfg(target_os = "windows")]
-        if let Some(ref mut spout) = self.spout_output {
-            if let Err(e) = spout.submit_frame(texture, device, queue) {
-                log::error!("Spout output error: {}", e);
             }
         }
     }

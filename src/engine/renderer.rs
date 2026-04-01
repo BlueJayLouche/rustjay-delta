@@ -438,6 +438,19 @@ impl WgpuEngine {
         self.output_manager.stop_syphon();
     }
 
+    /// Start Spout output (Windows only)
+    #[cfg(target_os = "windows")]
+    pub fn start_spout_output(&mut self, sender_name: &str) -> anyhow::Result<()> {
+        self.output_manager.start_spout(sender_name)?;
+        Ok(())
+    }
+
+    /// Stop Spout output (Windows only)
+    #[cfg(target_os = "windows")]
+    pub fn stop_spout_output(&mut self) {
+        self.output_manager.stop_spout();
+    }
+
     /// Render a frame
     pub fn render(&mut self, _occluded: bool) {
         // Get current motion parameters from shared state
