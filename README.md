@@ -95,9 +95,20 @@ Download the `.dmg`, open it, and drag RustJay Delta to your Applications folder
 
 ### Requirements
 
+#### macOS
+- macOS 11+ (Big Sur or later)
+- Xcode Command Line Tools
 - Rust 1.75+
-- macOS 11+ or Linux (Vulkan GPU)
-- Xcode Command Line Tools (macOS)
+
+#### Windows
+- Windows 10/11 (64-bit)
+- [Rust](https://rustup.rs/) 1.75+ with the `x86_64-pc-windows-msvc` toolchain
+- [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) (C++ workload)
+- [LLVM](https://github.com/llvm/llvm-project/releases) (optional — only needed if building with `webcam` or `ndi` features)
+
+#### Linux
+- Vulkan-capable GPU
+- Rust 1.75+
 
 ### Clone and Build
 
@@ -106,9 +117,17 @@ cd rustjay-delta
 cargo build --release
 ```
 
+The default build includes webcam support and works on all platforms with no extra dependencies beyond the Rust toolchain and platform build tools.
+
 ### NDI Support (Optional)
 
-Download and install the NDI SDK from [ndi.video](https://ndi.video). On macOS the build system finds it automatically in `/usr/local/lib` or `/Library/NDI SDK for Apple/lib/macOS`.
+NDI is not included in the default build. To enable:
+
+```bash
+cargo build --release --features ndi
+```
+
+Download and install the NDI SDK from [ndi.video](https://ndi.video). On macOS the build system finds it automatically in `/usr/local/lib` or `/Library/NDI SDK for Apple/lib/macOS`. LLVM must also be installed (NDI's build script uses `bindgen`).
 
 ### Syphon Support (macOS Only)
 
@@ -127,6 +146,17 @@ If your layout differs, set `SYPHON_FRAMEWORK_DIR` before building:
 ```bash
 SYPHON_FRAMEWORK_DIR=/path/to/syphon-rs/syphon-lib cargo build --release
 ```
+
+### Spout Support (Windows Only)
+
+Spout is enabled automatically on Windows. No extra dependencies are required — the Spout sender protocol is implemented directly using the Windows D3D11 and DXGI APIs (via the `windows` crate).
+
+```powershell
+cargo build --release
+cargo run --release
+```
+
+Open Resolume Arena, OBS (with [OBS-Spout2-Plugin](https://github.com/Off-World-Live/obs-spout2-plugin)), or any Spout-capable app on the same machine to receive the output.
 
 ## Running
 
@@ -171,6 +201,7 @@ cargo run --release
 #### Output Tab
 - NDI output name and toggle
 - Syphon output name and toggle (macOS)
+- Spout output name and toggle (Windows)
 - Resolution preset (720p / 1080p / 1440p / 4K)
 - Fullscreen toggle
 
