@@ -451,6 +451,23 @@ impl WgpuEngine {
         self.output_manager.stop_spout();
     }
 
+    /// Start V4L2 loopback output (Linux only)
+    #[cfg(target_os = "linux")]
+    pub fn start_v4l2_output(&mut self, device_path: &str) -> anyhow::Result<()> {
+        self.output_manager.start_v4l2(
+            device_path,
+            self.render_target.width,
+            self.render_target.height,
+        )?;
+        Ok(())
+    }
+
+    /// Stop V4L2 loopback output (Linux only)
+    #[cfg(target_os = "linux")]
+    pub fn stop_v4l2_output(&mut self) {
+        self.output_manager.stop_v4l2();
+    }
+
     /// Render a frame
     pub fn render(&mut self, _occluded: bool) {
         // Get current motion parameters from shared state
